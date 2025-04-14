@@ -18,12 +18,13 @@ package component
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"time"
+
+	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"net/url"
-	"os"
-	"time"
 )
 
 var (
@@ -32,10 +33,9 @@ var (
 	// mongo用户名
 	mongoUserName = ""
 	// mongo密码
-	mongoPassWord = ""
+	mongoPassWord  = ""
+	collectionName = ""
 )
-
-const collectionName = "demo"
 
 type mongoComponent struct {
 	client   *mongo.Client
@@ -75,14 +75,14 @@ func (m *mongoComponent) SetName(ctx context.Context, key string, name string) e
 	return nil
 }
 
-//NewMongoComponent 新建一个mongodbComponent，其实现了HelloWorldComponent接口
+// NewMongoComponent 新建一个mongodbComponent，其实现了HelloWorldComponent接口
 func NewMongoComponent() *mongoComponent {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	tmp, err := url.Parse(mongoAddr)
 	if err != nil {
-		panic("mongo addr parse error")
+		panic("mongo addr parse error:" + mongoAddr)
 	}
 	authSource := tmp.Query().Get("authSource")
 	credential := options.Credential{
@@ -98,7 +98,7 @@ func NewMongoComponent() *mongoComponent {
 		panic("mongo connect error")
 	}
 
-	dataBase := "demo"
+	dataBase := "game_db"
 	doc := &model{
 		Key:   "name",
 		Value: Mongo,
@@ -111,9 +111,14 @@ func NewMongoComponent() *mongoComponent {
 	return &mongoComponent{client, dataBase}
 }
 
-//init 项目启动时，会从环境变量中获取mongodb的地址，用户名和密码
+// init 项目启动时，会从环境变量中获取mongodb的地址，用户名和密码
 func init() {
-	mongoAddr = os.Getenv("MONGO_ADDRESS")
-	mongoUserName = os.Getenv("MONGO_USERNAME")
-	mongoPassWord = os.Getenv("MONGO_PASSWORD")
+	viper.SetConfigName("mongo")
+	viper.SetConfigType("yml")
+	viper.AddConfigPath("./conf")
+	viper.ReadInConfig()
+	mongoAddr = viper.GetString("mongo.host") + ":" + viper.GetString("mongo.port")
+	mongoUserName = viper.GetString("mongo.user")
+	mongoPassWord = viper.GetString("mongo.pass")
+	collectionName = viper.GetString("mongo.dbName")
 }
